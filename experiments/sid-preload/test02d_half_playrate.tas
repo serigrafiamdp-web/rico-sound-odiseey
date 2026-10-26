@@ -1,0 +1,391 @@
+; SIDPLAY64MIX / TEST02D — HALF PLAY RATE (30 Hz calls / 60 Hz CIA IRQ)
+;
+; This is deliberately NOT linked into Glenn's autorrelocating SIDPLAY64
+; yet.  It tests the risky IRQ/load operation using three 1-subtune SIDs
+; with load/init=$1000 and play=$1003, e.g. SIPLAY.d64 A/B/C.
+;
+; Device 8, 1541 emulation.  Krill v184: INSTALL=$6000, RESIDENT=$9000,
+; ZP=$C0.  The loader binaries are separate files loaded with KERNAL
+; before SID A starts.  PLAY is deliberately executed on every 2nd CIA IRQ
+; during this diagnostic; CIA remains at ~60 Hz, playlist threshold stays
+; at 600 interrupts (~10 seconds), and Krill's timing is untouched.
+; before SID A starts.  Using SD2IEC requires the Krill KERNAL fallback
+; option; this TEST02 first targets a genuine/emulated 1541.
+;
+; Zero page $F0-$F7 is switched around PLAY: while loading, the
+; loader's state remains live.  The tune sees its own private values.
+; BORDER: 6 boot, 7 loading, 5 ready, 1 switched, 2 finished, 10 error.
+;
+; 64tass --m6502 -a tests/test02_krill_irq_harness.tas -o TEST02.PRG
+;
+* = $0801
+        .word $080b
+        .word 10
+        .byte $9e,$32,$30,$36,$31,0
+        .word 0
+* = $080d
+        jmp boot
+
+krill_install = $6000
+krill_raw     = $9000
+sid_init      = $1000
+sid_play      = $1003
+stage_base    = $5000
+exec_base     = $1000
+next_ready    .byte 0
+phase         .byte 0
+ticks_lo      .byte 0
+ticks_hi      .byte 0
+loader_status .byte 0
+play_divider  .byte 0      ; diagnostic: PLAY on alternating 60Hz CIA IRQs
+music_zp      .fill 22,0
+loader_zp     .fill 22,0
+
+boot
+        sei
+        lda #$06
+        sta $d020
+        lda #$00
+        sta $d021
+        lda #$01
+        jsr debug_stage
+        ; Each PRG has a C64 load-address prefix.  The KERNAL loads them
+        ; to their own absolute addresses before Krill takes over.
+        ldx #<install_name
+        ldy #>install_name
+        lda #install_name_end-install_name
+        jsr load_file
+        bcc +
+        jmp boot_error
++
+        lda #$02
+        jsr debug_stage
+        ldx #<resident_name
+        ldy #>resident_name
+        lda #resident_name_end-resident_name
+        jsr load_file
+        bcc +
+        jmp boot_error
++
+        lda #$03
+        jsr debug_stage
+        ldx #<sid_a_name
+        ldy #>sid_a_name
+        lda #sid_a_name_end-sid_a_name
+        jsr load_file
+        bcc +
+        jmp boot_error
++
+
+        lda #$04
+        jsr debug_stage
+        ; Install drive-side Krill protocol while KERNAL remains active.
+        lda #$08
+        sta $ae               ; FA: active drive for Krill installer
+        sta $ba               ; current device
+        jsr krill_install
+        bcc +
+        jmp boot_error
++
+        lda #$05
+        jsr debug_stage
+        ; Preserve all Krill ZP before invoking SID INIT.
+        ldx #21
+save_postinstall_krill_zp
+        lda $c0,x
+        sta loader_zp,x
+        dex
+        bpl save_postinstall_krill_zp
+
+        ; Switch to all-RAM mapping and install a true hardware IRQ vector.
+        ; BASIC/KERNAL will no longer be called while the SID is running.
+        sei
+        lda #$35
+        sta $01
+        lda #0
+        jsr sid_init
+        sei
+        lda #$35
+        sta $01
+        ldx #21
+capture_initial_zp
+        lda $c0,x
+        sta music_zp,x
+        lda loader_zp,x
+        sta $c0,x
+        dex
+        bpl capture_initial_zp
+        lda #$06
+        jsr debug_stage
+        lda #<sid_irq
+        sta $fffe
+        lda #>sid_irq
+        sta $ffff
+        lda #$00
+        sta $d01a              ; disable VIC raster IRQ
+        jsr arm_cia_irq
+        cli
+
+        lda #$07
+        jsr debug_stage
+        ; First foreground load while SID A is already playing by IRQ.
+        lda #1
+        sta phase
+        lda #7
+        sta $d020
+        ldx #<sid_b_name
+        ldy #>sid_b_name
+        jsr krill_raw
+        bcs runtime_error
+        lda #$08
+        jsr debug_stage
+        lda #1
+        sta next_ready
+        lda #5
+        sta $d020
+        jsr await_timer
+        jsr swap_staged_sid
+        lda #$09
+        jsr debug_stage
+
+        ; SID B now plays.  Buffer $5000 may be overwritten by SID C.
+        lda #2
+        sta phase
+        lda #7
+        sta $d020
+        ldx #<sid_c_name
+        ldy #>sid_c_name
+        jsr krill_raw
+        bcs runtime_error
+        lda #1
+        sta next_ready
+        lda #5
+        sta $d020
+        jsr await_timer
+        jsr swap_staged_sid
+        lda #$0b
+        jsr debug_stage
+        lda #3
+        sta phase
+        lda #2
+        sta $d020
+finished
+        jmp finished
+
+boot_error
+        ; Last successful stage still shown at $0400.
+        sta $0402
+        lda #$05
+        sta $0401
+        sei
+        lda #10
+        sta $d020
+boot_halt
+        jmp boot_halt
+
+runtime_error
+        ; Keep the SID IRQ alive for debugging; no destructive handoff.
+        sta $0402
+        lda #$05
+        sta $0401
+        lda #10
+        sta $d020
+runtime_halt
+        jmp runtime_halt
+
+; LOAD PRG from device 8 to the embedded two-byte load address.
+; In: A=name length, X/Y=name pointer.  Out: carry from $FFD5.
+load_file
+        jsr $ffbd              ; SETNAM
+        lda #8                 ; logical file
+        ldx #8                 ; device
+        ldy #1                 ; secondary 1 (honor PRG load address)
+        jsr $ffba              ; SETLFS
+        lda #0
+        tax
+        tay
+        jsr $ffd5              ; LOAD
+        rts
+
+; Tunes are from SIPLAY.d64, speed flag=1 (CIA) => ~60 Hz on PAL.
+; 985248 / 60 ~= 16421 cycles => $4025.
+arm_cia_irq
+        lda #$7f
+        sta $dc0d
+        lda $dc0d
+        lda #$25
+        sta $dc04
+        lda #$40
+        sta $dc05
+        lda #%00010001
+        sta $dc0e
+        lda #$81
+        sta $dc0d
+        rts
+
+; Hardware IRQ, ROMs disabled, loader mainline interrupted at any point.
+sid_irq
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda $01
+        pha
+        lda #$35
+        sta $01
+        lda $dc0d             ; ACK CIA IRQ
+        and #$01
+        beq sid_irq_done
+
+        ; Store all 22 Krill ZP bytes, present the tune's ZP for sid_play.
+        ldx #21
+sid_zp_enter
+        lda $c0,x
+        sta loader_zp,x
+        lda music_zp,x
+        sta $c0,x
+        dex
+        bpl sid_zp_enter
+
+        ; TEST02D diagnostic: run PLAY on alternate IRQs only.
+        ; Do NOT slow $dc04/$dc05; disk loader and 600-tick timer remain 60 Hz.
+        lda play_divider
+        eor #$01
+        sta play_divider
+        beq sid_skip_play
+        jsr sid_play
+sid_skip_play
+        sei                    ; defensive: tune may have executed CLI
+        lda #$35
+        sta $01
+        ldx #21
+sid_zp_exit
+        lda $c0,x
+        sta music_zp,x
+        lda loader_zp,x
+        sta $c0,x
+        dex
+        bpl sid_zp_exit
+
+        inc ticks_lo
+        bne sid_irq_done
+        inc ticks_hi
+sid_irq_done
+        pla
+        sta $01
+        pla
+        tay
+        pla
+        tax
+        pla
+        rti
+
+; Timer threshold = 600 CIA ticks (~10 seconds from start of each SID).
+; The disk is NOT accessed at threshold.
+await_timer
+        lda next_ready
+        beq await_timer
+await_tick
+        lda ticks_hi
+        cmp #$02
+        bcc await_tick
+        bne await_done
+        lda ticks_lo
+        cmp #$58
+        bcc await_tick
+await_done
+        rts
+
+; Caller: staged SID ready, A/B tune will be discarded.
+; IRQs disabled only for memcpy + INIT + new CIA setup.
+swap_staged_sid
+        sei
+        lda #0
+        sta $dc0e
+        lda #$7f
+        sta $dc0d
+        lda $dc0d
+        lda #0
+        sta $d418
+        sta next_ready
+
+        ; copy $5000-$6fff -> $1000-$2fff, 8192 B
+        lda #0
+        sta $e0
+        sta $e2
+        lda #$50
+        sta $e1
+        lda #$10
+        sta $e3
+        ldx #$20
+copy_page
+        ldy #0
+copy_byte
+        lda ($e0),y
+        sta ($e2),y
+        iny
+        bne copy_byte
+        inc $e1
+        inc $e3
+        dex
+        bne copy_page
+
+        ; Loader ZP must survive a music INIT.
+        ldx #21
+stash_loader_zp
+        lda $c0,x
+        sta loader_zp,x
+        lda #0
+        sta $c0,x
+        dex
+        bpl stash_loader_zp
+        lda #0
+        jsr sid_init
+        sei
+        lda #$35
+        sta $01
+        ldx #21
+new_sid_zp
+        lda $c0,x
+        sta music_zp,x
+        lda loader_zp,x
+        sta $c0,x
+        dex
+        bpl new_sid_zp
+
+        lda #0
+        sta ticks_lo
+        sta ticks_hi
+        sta play_divider   ; First CIA IRQ of the new SID plays immediately
+        jsr arm_cia_irq
+        lda #1
+        sta $d020
+        cli
+        rts
+
+install_name
+        ; Strict PETSCII file bytes matching the D64 directory (not .text screen encoding).
+        .byte $49,$4e,$53,$54,$41
+install_name_end
+resident_name
+        .byte $52,$45,$53,$49,$44,$45,$4e,$54
+resident_name_end
+sid_a_name
+        .byte $4d,$49,$58,$5f,$41
+sid_a_name_end
+sid_b_name
+        .byte $4d,$49,$58,$5f,$42,0
+sid_c_name
+        .byte $4d,$49,$58,$5f,$43,0
+
+; The top-left character shows the last checkpoint reached: A=1 .. K=11.
+; On errors, E appears next to it, error code shown in third cell.
+debug_stage
+        sta $0400
+        sta $d020
+        lda #$01
+        sta $d800
+        rts
+
+.cerror *>=$1000,"TEST02D boot must not collide with active SID at $1000"
