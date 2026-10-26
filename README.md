@@ -53,7 +53,9 @@ El código fuente de terceros conserva sus respectivas licencias y créditos. Es
 
 ## SOUND ODYSSEY — MIDI IN DATEL (TEST08 PASS)
 
-**Estado al 26/10/2026:** SOUND ODYSSEY responde a MIDI IN mediante DATEL y reproduce sus propios presets en VICE, sin cuelgues. **TEST08** es la referencia validada por el usuario, con C1 del editor como primer Do grave audible. El receptor usa polling, es monofónico y controla por ahora 18 posiciones musicales; la selección de octava de SOUND todavía afecta la altura. No confundir con soporte independiente para toda la tabla de 96 notas.
+**Estado al 26/10/2026:** **TEST09 PASS en VICE.** SOUND ODYSSEY responde por MIDI IN DATEL con sus sonidos originales, rango C1–C6 (61 notas cromáticas programadas) e independencia de la octava visual. Recepción por polling; monofónico, sin garantía aún de soportar datos MIDI rápidos ni de funcionar en hardware físico. **TEST08 se conserva como MASTER anterior / recuperación.**
 
 - [Documentación técnica, pruebas PASS/FAIL y próximos pasos](docs/SOUND_ODYSSEY_DATEL_MIDI_2026-10-26.md)
 - [Constructor reproducible de TEST08](tools/rebuild_SOUND_DATEL_TEST08_from_original.py.gz) (gzip; requiere la captura original `sound(1).PRG`). El PRG probado y el ZIP de recuperación se conservan también como archivos adjuntos en la conversación de desarrollo.
+
+- [SOUND ODYSSEY — TEST09 PASS, rango C1–C6, checksum y limitaciones](docs/SOUND_ODYSSEY_TEST09_PASS_2026-10-26.md)
