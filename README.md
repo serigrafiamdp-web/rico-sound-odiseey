@@ -19,10 +19,15 @@ Este repositorio se creó vacío. Se inicializó con documentación de referenci
 - [Registro de pruebas de precarga](docs/SID_PRELOAD_TESTS_2026-10-26.md) — TEST02C y TEST02D, resultados observados, límites y riesgos.
 - [Estado de MIDI, Sound Odyssey y SIDTracker64](docs/SOUND_ODISEEY_MIDI_SIDTRACKER64.md) — convenciones verificadas y problemas pendientes.
 - [Protocolo de pruebas](docs/TEST_PROTOCOL.md) — cómo registrar nuevos TEST / PASS / FAIL sin alterar un MASTER.
+- [Hashes de los D64 probados](docs/ARTIFACTS_SHA256.md) — identificación reproducible de los binarios TEST02C / TEST02D.
 
 ## Código experimentado
 
-Las rutinas de las pruebas de Krill están en el proyecto donde se desarrollaron y compilaron:
+Se preservaron copias exactas de los fuentes de las pruebas en [`experiments/sid-preload/`](experiments/sid-preload). El Git blob SHA de cada copia fue verificado contra su origen.
+
+**Los discos D64 originales PASS todavía no están alojados en este GitHub**, pero sus nombres, tamaños y sumas SHA-256 se registraron en el documento de artefactos.
+
+Las rutinas se desarrollaron y compilaron originalmente en:
 
 - [SIDPLAY64MIX (fuente original de los TEST)](https://github.com/serigrafiamdp-web/SIDPLAY64MIX)
 - [TEST02C — punto de recuperación PASS](https://github.com/serigrafiamdp-web/SIDPLAY64MIX/tree/milestone/test02c-krill-abc-pass-26oct2026)
