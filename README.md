@@ -1,61 +1,82 @@
-# RICO SOUND ODISEEY
+# RICOS SOUND ODYSSEY — Port Commodore 64 / SID / TRSE
 
-**Proyecto Commodore 64 / SID / MIDI.**
+**Estado actual: TEST68B — PASS funcional en VICE (2 de noviembre de 2026).**
 
-Este repositorio reúne la documentación, las pruebas reproducibles y el desarrollo futuro de **RICO SOUND ODISEEY**.
+Este repositorio está dedicado a la reconstrucción del sintetizador **3001: A Sound Odyssey** para Commodore 64. El objetivo es obtener un proyecto ASM/TRSE mantenible, conservar la pantalla MICROSYNTH y las funciones del motor SID, eliminar módulos obsoletos y, más adelante, recuperar MIDI IN DATEL y rediseñar algunos controles.
 
-## Estado inicial — 26 de octubre de 2026
+> **IMPORTANTE:** el port todavía es **híbrido**. El programa funciona, pero una parte del código y los datos siguen dependiendo de la captura binaria ISEPIC. No es todavía una compilación independiente realizada completamente por TRSE.
 
-Este repositorio se creó vacío. Se inicializó con documentación de referencia y copias de código de pruebas **sin modificar** los repositorios fuente ni confundir una compilación exitosa con una validación en VICE.
+## Última versión comprobada
 
-### Áreas de trabajo
+**TEST68B — LFO + FIRE.** El usuario confirmó que el LFO sigue modulando mientras mantiene pulsado FIRE y maneja el joystick. Partimos de TEST66B PASS, no del TEST67 pendiente. No se desactivaron los sprites de MICROSYNTH.
 
-- **Sound Odyssey / MIDI**: mapeo de notas y octavas para el chip SID. Referencia operativa: `C1` es la primera nota grave audible validada en Sound Odyssey. La escala C1–C6 y el alcance real del SID requieren verificación de pruebas MIDI adicionales.
-- **Reproducción SID / precarga**: experiencia probada en VICE con KrillLoad y transiciones A → B → C en el prototipo experimental derivado de SIDPLAY64.
-- **Compatibilidad SIDTracker64 (iPad)**: investigar cadencias reales de reproducción de los SID exportados, cabeceras PSID, timer CIA/VBI y CALL PLAY. No atribuir una velocidad única a todos los SID.
+D64 aprobado: `RICOS_TEST68B_LFO_FIRE_PASS.d64` — SHA-256:
+`208c10d03d8b78d622f70e2dd25a762b9e2d4666eb02baede23bc6b5ad54f64d`.
 
-## Documentos
+Base de recuperación: TEST66B — SIN DEMO / TUTORIAL — SHA-256 D64:
+`260f466e31fa0ec382621481f6f8e4c7b19495b791803e1e1ce10e0fbdc3752f`.
 
-- [Registro de pruebas de precarga](docs/SID_PRELOAD_TESTS_2026-10-26.md) — TEST02C y TEST02D, resultados observados, límites y riesgos.
-- [Estado de MIDI, Sound Odyssey y SIDTracker64](docs/SOUND_ODISEEY_MIDI_SIDTRACKER64.md) — convenciones verificadas y problemas pendientes.
-- [Protocolo de pruebas](docs/TEST_PROTOCOL.md) — cómo registrar nuevos TEST / PASS / FAIL sin alterar un MASTER.
-- [Hashes de los D64 probados](docs/ARTIFACTS_SHA256.md) — identificación reproducible de los binarios TEST02C / TEST02D.
+**Nota de distribución:** el ZIP limpio del proyecto, sus D64 y `log.txt` completo se entregaron como artefacto de la sesión. Todavía no se ha sincronizado todo el árbol de fuentes de ese ZIP con este repositorio. No confundir una actualización de documentación con la publicación de un nuevo ejecutable en GitHub.
 
-## Código experimentado
+## Estado de los módulos
 
-Se preservaron copias exactas de los fuentes de las pruebas en [`experiments/sid-preload/`](experiments/sid-preload). El Git blob SHA de cada copia fue verificado contra su origen.
+| Módulo | Estado comprobado |
+|---|---|
+| MICROSYNTH, tres voces SID, filtros, ADSR, LOAD / SAVE / PRESETS | Funcionales en pruebas anteriores |
+| RETURN / SYNC | PORT59 FIX1 PASS: copia valor ADSR de la voz bajo cursor a las otras dos; conserva origen |
+| LFO durante controles FIRE | **TEST68B PASS** |
+| Menú antiguo M + RUN/STOP | TEST65B PASS, retirado |
+| DEMO / introducción TUTORIAL | TEST66B PASS, regiones retiradas |
+| Poda adicional TEST67 | PENDIENTE de validación VICE; no incorporada a TEST68B |
+| Sprites de tecla pulsada y nombre de nota | Deben permanecer habilitados en MICROSYNTH |
+| SEQUENCER | Todavía no limpiado; aparece con cursor en PRESET + FIRE |
+| MIDI IN DATEL | Prototipo histórico TEST09 PASS con polling; aún no reintegrado en el port TRSE actual |
 
-**Los discos D64 originales PASS todavía no están alojados en este GitHub**, pero sus nombres, tamaños y sumas SHA-256 se registraron en el documento de artefactos.
+## Rutinas identificadas
 
-Las rutinas se desarrollaron y compilaron originalmente en:
+| Dirección | Uso identificado |
+|---|---|
+| `$484A` / `$485D` | Bucle musical y llamada al LFO |
+| `$468F` | Actualización de modulación LFO / Envelope Follower |
+| `$38A0` | Sondeo del joystick/FIRE |
+| `$3A1D` / `$3A27` | Bucle de espera utilizado durante edición |
+| `$0B0E` | Zona liberada del menú, reutilizada por servicio LFO TEST68B |
+| `$3F03` | Entrada histórica de RETURN y vinculación ADSR |
+| `$25C1` | Rutina reubicada de sincronización del parámetro fuente |
+| `$39D8`, `$3FFA` | Selección de nibble ADSR y referencia de voz de origen |
+| `$3BB7`, `$39D3` | Avance a siguiente voz y estado de voz |
+| `$49F6–$4AE5` | Tablas de teclado y frecuencias SID |
+| `$D41B`, `$D41C` | Lecturas SID OSC3 y ENV3 |
+| `$0A81`, `$37BA` | Arranque histórico del menú y acceso M + RUN/STOP (retirados) |
 
-- [SIDPLAY64MIX (fuente original de los TEST)](https://github.com/serigrafiamdp-web/SIDPLAY64MIX)
-- [TEST02C — punto de recuperación PASS](https://github.com/serigrafiamdp-web/SIDPLAY64MIX/tree/milestone/test02c-krill-abc-pass-26oct2026)
-- [TEST02D — punto de recuperación PASS funcional](https://github.com/serigrafiamdp-web/SIDPLAY64MIX/tree/milestone/test02d-krill-three-sids-audio-pass-26oct2026)
-- [Documentación original de Glenn Rune y código del reproductor](https://github.com/serigrafiamdp-web/SIDPLAY64MIX/blob/master/sidplay64-readme.txt)
-- [SCUMM-PET-C64 — precedente de reproducción mientras Krill carga](https://github.com/serigrafiamdp-web/SCUMM-PET-C64)
+El parche TEST68B agrega actualización cooperativa del LFO en los bucles de espera y de lectura de FIRE, evitando una segunda IRQ de audio. Ver `sound/lfo_continuous_fire_test68.asm` en el ZIP limpio.
 
-**Importante:** la precarga demostrada en el *harness* no está todavía integrada en la interfaz, playlist y sistema autorreubicable de SIDPLAY64. No hay confirmación de compatibilidad con SD2IEC real ni de velocidad musical final. No promover a MASTER sin nueva prueba.
+## Cobertura real de fuentes
 
-## Siguiente objetivo
+Hasta PORT63 se contabilizaron **15.041 bytes de instrucciones 6502** y **12.757 bytes de tablas y datos** reconstruidos desde fuentes. **No significa 42,8% de independencia funcional:** todavía se utiliza el residuo binario y el cargador histórico. La eliminación de bloques de menú tampoco reduce automáticamente el tamaño del D64.
 
-Desarrollar un TEST03 que conecte la precarga al timer y a la selección de archivos del SIDPLAY64 original: mientras suena A, cargar B; al cumplirse el timer, activar B desde RAM; durante B, precargar C. Mantener controles y playlist originales.
+## Organización de la distribución limpia
 
-Los nuevos cambios se hacen en ramas de prueba; el código validado se conserva en referencias MASTER/PASS inmutables o ramas etiquetadas claramente.
+- `README.md`: estado vigente y mapa técnico.
+- `log.txt`: **un solo archivo** que reúne los anteriores 95 archivos `.txt` y 7 `.log`, cada uno con ruta de origen y checksum.
+- `main.ras`, `RICOSSOUNDODISSEY.trse`: proyecto y bootstrap fuente.
+- `sound/`: rutinas ASM y únicamente binarios base necesarios.
+- `assets/`: residuales/manifiestos conservados para poder reconstruir.
+- `tools/`: ensambladores y constructores; sin D64 ni lanzadores históricos redundantes.
+- `D64/`: TEST68B PASS y TEST66B de respaldo.
 
-## Créditos
+El ZIP completo anterior se conserva por separado como respaldo; el paquete limpio no contiene lotes viejos de D64 o diagnósticos.
 
-- **SIDPLAY64** — Glenn Rune Gallefoss.
-- **Krill's Loader** — Gunnar Ruthenberg.
-- **SIDTracker64** — aplicación de composición SID para iPad (referencia de compatibilidad).
+## Siguientes trabajos
 
-El código fuente de terceros conserva sus respectivas licencias y créditos. Esta documentación no implica que las pruebas estén listas para publicación como reproductor final.
+1. Regresión de ADSR, PULSE WIDTH, filtros y presets con LFO continuo.
+2. Analizar SEQUENCER: cursor en PRESET, pulsar FIRE. Retirar su código exclusivo preservando PRESETS.
+3. Completar el port de código real y eliminar dependencia del residuo.
+4. Reintegrar MIDI IN DATEL mediante un gestor único del motor de notas, minimizando cortes audibles.
+5. Rediseñar la UI y los atajos de teclas solamente después.
 
-## SOUND ODYSSEY — MIDI IN DATEL (TEST08 PASS)
+## Procedencia e historial
 
-**Estado al 26/10/2026:** **TEST09 PASS en VICE.** SOUND ODYSSEY responde por MIDI IN DATEL con sus sonidos originales, rango C1–C6 (61 notas cromáticas programadas) e independencia de la octava visual. Recepción por polling; monofónico, sin garantía aún de soportar datos MIDI rápidos ni de funcionar en hardware físico. **TEST08 se conserva como MASTER anterior / recuperación.**
+Este README se corrigió porque contenía documentación de **SIDPLAY64, KrillLoad y SIDTracker64**, correspondiente a otra línea de trabajo. El contenido anterior se conservó en la rama `backup/readme-pre-port-2026-11-02`. El historial MIDI específico de SOUND ODYSSEY sigue siendo útil; los tests SIDPLAY64 no forman parte de este port.
 
-- [Documentación técnica, pruebas PASS/FAIL y próximos pasos](docs/SOUND_ODYSSEY_DATEL_MIDI_2026-10-26.md)
-- [Constructor reproducible de TEST08](tools/rebuild_SOUND_DATEL_TEST08_from_original.py.gz) (gzip; requiere la captura original `sound(1).PRG`). El PRG probado y el ZIP de recuperación se conservan también como archivos adjuntos en la conversación de desarrollo.
-
-- [SOUND ODYSSEY — TEST09 PASS, rango C1–C6, checksum y limitaciones](docs/SOUND_ODYSSEY_TEST09_PASS_2026-10-26.md)
+Esta publicación no constituye un nuevo PASS de VICE ni un resultado de compilación TRSE autónoma.
