@@ -1,0 +1,26 @@
+RICOS SOUND ODYSSEY — REGISTRO ACTUAL DEL PORT
+Actualizado: 2026-11-02
+Este es el resumen de control en GitHub. El ZIP limpio local contiene el log.txt HISTÓRICO COMPLETO formado por 95 archivos .txt + 7 .log y conserva sus rutas y SHA-256.
+
+BASE VIGENTE: TEST68B LFO + FIRE — PASS funcional en VICE.
+SHA-256 D64: 208c10d03d8b78d622f70e2dd25a762b9e2d4666eb02baede23bc6b5ad54f64d
+BASE DE RESPALDO: TEST66B — PASS funcional.
+SHA-256 D64: 260f466e31fa0ec382621481f6f8e4c7b19495b791803e1e1ce10e0fbdc3752f
+
+PORT50–58: motor SID/ADSR/RETURN y rutinas multivoz probadas en VICE.
+PORT59 FIX1: PASS, SYNC toma Attack/Decay/Sustain/Release de la voz bajo cursor y copia a las otras dos, conservando origen.
+PORT60–63: 15.041 bytes código 6502 respaldados por fuentes, datos adicionales y código de interfaz/controles.
+TEST64: descartado por desactivar sprites útiles de MICROSYNTH.
+TEST65B: PASS, elimina menú M+RUNSTOP con opciones MICROSYNTH/DEMO/TUTORIAL.
+TEST66B: PASS, limpia DEMO y parte de introducción TUTORIAL.
+TEST67: sin PASS funcional, NO se integró.
+TEST68B: PASS, el LFO continúa modulando durante FIRE/joystick. Usa servicio cooperativo en memoria del menú eliminado.
+
+PENDIENTE:
+- regresiones de controles con LFO activo;
+- limpieza del SEQUENCER desde PRESET+FIRE;
+- port autónomo TRSE (todavía híbrido);
+- MIDI IN DATEL con polling/buffer estable (previa prueba MIDI TEST09 en binario, no integrado aquí);
+- rediseño UI tras terminar el port.
+
+GITHUB: se retiró la documentación de SIDPLAY64/KrillLoad perteneciente a otro desarrollo. Respaldo del estado anterior: backup/readme-pre-port-2026-11-02.
